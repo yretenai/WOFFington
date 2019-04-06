@@ -35,7 +35,10 @@ namespace WOFFington.Mithril
         /// <exception cref="T:System.IO.FileNotFoundException">Thrown when <paramref name="filepath" /> does not exist</exception>
         public MithrilCompressedFile([NotNull] string filepath)
         {
-            if (!File.Exists(filepath)) throw new FileNotFoundException(filepath);
+            if (!File.Exists(filepath))
+            {
+                throw new FileNotFoundException(filepath);
+            }
 
             using (var stream = File.OpenRead(filepath))
             {
@@ -70,7 +73,11 @@ namespace WOFFington.Mithril
                 Contract.Assert(Ints[9] == 0x1, "Ints[9] == 0x1");
                 for (var i = 0; i < Ints.Length; ++i)
                 {
-                    if (i <= 2 || i == 9) continue;
+                    if (i <= 2 || i == 9)
+                    {
+                        continue;
+                    }
+
                     Contract.Assert(Ints[i] == 0x0, "Ints[i] == 0x0");
                 }
 #endif
@@ -216,7 +223,10 @@ namespace WOFFington.Mithril
         /// <inheritdoc />
         protected override void Dispose(bool disposing)
         {
-            if (disposing) BaseStream.Dispose();
+            if (disposing)
+            {
+                BaseStream.Dispose();
+            }
         }
 
         #endregion
