@@ -1,5 +1,6 @@
-﻿using System.IO;
-using WOFFington.Csh;
+﻿using System;
+using System.IO;
+using System.Linq;
 using WOFFington.Extensions;
 using WOFFington.Mithril;
 
@@ -10,22 +11,25 @@ namespace WOFFingston.CSH
         public static void Main()
         {
             // TODO: Testing for now.
-            const string file = @"csv\character_list.csh";
+            const string fileDir1 = @"csv";
+            const string fileDir2 = @"csv\message\us";
+            const string filePattern = "*.csh";
 
-            using (var stream = new MithrilCompressedFile(file))
+            foreach (var file in Directory.GetFiles(fileDir1, filePattern)
+                .Concat(Directory.GetFiles(fileDir2, filePattern)))
             {
-                using (new RememberStream(stream))
+                Console.WriteLine(file);
+                using (var stream = new MithrilCompressedFile(file))
                 {
-                    stream.Position = 0;
-
-                    using (var fs = File.OpenWrite(file + ".inflate"))
+                    using (new RememberStream(stream))
+                    using (var fs = File.OpenWrite(Path.ChangeExtension(file, ".inflate")))
                     {
                         stream.CopyTo(fs);
                     }
-                }
 
-                var csh = new CshFile(stream);
-                File.WriteAllText(Path.ChangeExtension(file, "csv"), csh.ToString());
+                    var mithrilFile = stream.Deserialize();
+                    File.WriteAllText(Path.ChangeExtension(file, ".csv"), mithrilFile.ToString());
+                }
             }
         }
     }

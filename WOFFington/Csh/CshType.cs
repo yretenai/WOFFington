@@ -6,8 +6,13 @@ namespace WOFFington.Csh
     public enum CshType
     {
         /// <summary>
-        ///     Only one seen so far
+        ///     Most common
         /// </summary>
-        Normal
+        Normal = 0x00,
+
+        /// <summary>
+        ///     Parameter file
+        /// </summary>
+        Param = 0x01
     }
 }

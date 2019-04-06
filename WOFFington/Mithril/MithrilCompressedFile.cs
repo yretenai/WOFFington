@@ -1,13 +1,14 @@
 using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Contracts;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using ICSharpCode.SharpZipLib.Zip.Compression;
 using JetBrains.Annotations;
 using WOFFington.Extensions;
-using zlib;
 
 namespace WOFFington.Mithril
 {
@@ -66,9 +67,11 @@ namespace WOFFington.Mithril
                 Contract.Assert(Magic == 0x63736800, nameof(Magic) + " == 0x63736800");
 
                 Ints = Reader.ReadInt32Array(0x1F).Select(IPAddress.NetworkToHostOrder).ToArray();
+                FileType = (MithrilFileType) Ints[1];
 #if DEBUG
                 Contract.Assert(Ints[0] == 0x2, "Ints[0] == 0x2");
-                Contract.Assert(Ints[1] == 0xD, "Ints[1] == 0xD");
+                Contract.Assert(Ints[1].ToString("X") != FileType.ToString("X"),
+                    "Ints[1].ToString('X') != FileType.ToString('X')");
                 Contract.Assert(Ints[2] == 0x2, "Ints[2] == 0x2");
                 Contract.Assert(Ints[9] == 0x1, "Ints[9] == 0x1");
                 for (var i = 0; i < Ints.Length; ++i)
@@ -89,32 +92,22 @@ namespace WOFFington.Mithril
                 CompressionType = (MithrilCompressionType) Reader.ReadInt32BE();
             }
 
-            BaseStream = new MemoryStream(UncompressedSize);
 
             switch (CompressionType)
             {
                 case MithrilCompressionType.Flat:
+                    BaseStream = new MemoryStream(UncompressedSize);
                     baseStream.CopyTo(BaseStream);
                     break;
                 case MithrilCompressionType.Zlib:
                     // I tried DeflateStream(CompressionMode.Decompress), but it failed.
-                    using (var shadow = new MemoryStream(UncompressedSize))
-                    using (var zlib = new ZOutputStream(shadow))
-                    {
-                        var counter = 0;
-                        var buffer = new byte[0x1024];
-                        while (counter < CompressedSize)
-                        {
-                            var sz = Math.Min(CompressedSize - counter, 0x1024);
-                            baseStream.Read(buffer, 0, sz);
-                            zlib.Write(buffer, 0, sz);
-                            counter += sz;
-                        }
-
-                        zlib.Flush();
-                        shadow.Position = 0;
-                        shadow.CopyTo(BaseStream);
-                    }
+                    var data = new byte[CompressedSize];
+                    var buffer = new byte[UncompressedSize];
+                    baseStream.Read(data, 0, CompressedSize);
+                    var inflater = new Inflater();
+                    inflater.SetInput(data, 0, CompressedSize);
+                    inflater.Inflate(buffer, 0, UncompressedSize);
+                    BaseStream = new MemoryStream(buffer);
 
                     break;
                 default:
@@ -124,7 +117,21 @@ namespace WOFFington.Mithril
             BaseStream.Position = 0;
         }
 
+        /// <summary>
+        ///     Deserializes this stream into a parsed file type
+        /// </summary>
+        /// <returns>IMithrilFile instance of the target filetype</returns>
+        public IMithrilFile Deserialize()
+        {
+            return ParsedFile ?? (ParsedFile = MithrilFileFactory.Parse(this));
+        }
+
         #region Vars
+
+        /// <summary>
+        ///     This stream, but parsed
+        /// </summary>
+        public IMithrilFile ParsedFile { get; private set; }
 
         /// <summary>
         ///     The underlying decompressed stream
@@ -140,6 +147,11 @@ namespace WOFFington.Mithril
         ///     Unknown ints
         /// </summary>
         public int[] Ints { get; private set; }
+
+        /// <summary>
+        ///     File type declared by the file.
+        /// </summary>
+        public MithrilFileType FileType { get; private set; }
 
         /// <summary>
         ///     Mithril Zlib magic header
@@ -226,7 +238,41 @@ namespace WOFFington.Mithril
             if (disposing)
             {
                 BaseStream.Dispose();
+
+                // ReSharper disable once SuspiciousTypeConversion.Global
+                if (ParsedFile != null && ParsedFile is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
             }
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return $"[{nameof(MithrilCompressedFile)}] FileType = {FileType}, Compression Mode = {CompressionType}";
+        }
+
+        /// <inheritdoc />
+        [SuppressMessage("ReSharper", "NonReadonlyMemberInGetHashCode")]
+        public override int GetHashCode()
+        {
+            return BaseStream.GetHashCode() ^ Ints.Sum(x => x.GetHashCode()) ^ CompressedSize ^ UncompressedSize ^
+                   (int) CompressionType;
+        }
+
+        /// <inheritdoc />
+        public override bool Equals(object obj)
+        {
+            if (obj is MithrilCompressedFile compressedFile)
+            {
+                return Ints.SequenceEqual(compressedFile.Ints) && compressedFile.FileType == FileType &&
+                       compressedFile.CompressedSize == CompressedSize &&
+                       compressedFile.UncompressedSize == CompressedSize &&
+                       compressedFile.CompressionType == CompressionType && BaseStream.Equals(compressedFile);
+            }
+
+            return false;
         }
 
         #endregion

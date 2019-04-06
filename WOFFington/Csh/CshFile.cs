@@ -7,13 +7,16 @@ using System.Net;
 using System.Text;
 using JetBrains.Annotations;
 using WOFFington.Extensions;
+using WOFFington.Mithril;
 
 namespace WOFFington.Csh
 {
+    /// <inheritdoc />
     /// <summary>
     ///     Reads and decodes a Csh file
     /// </summary>
-    public class CshFile
+    [MithrilFile(MithrilFileType.Csh)]
+    public class CshFile : IMithrilFile
     {
         /// <summary>
         ///     Parse the given <paramref name="data" /> into row data
@@ -22,10 +25,55 @@ namespace WOFFington.Csh
         /// <exception cref="NotSupportedException">When a cell is an unknown type</exception>
         public CshFile([NotNull] Stream data)
         {
+            Load(data);
+        }
+
+        /// <summary>
+        ///     Dummy for initialization
+        /// </summary>
+        [UsedImplicitly]
+        public CshFile()
+        {
+        }
+
+        /// <summary>
+        ///     File type enum
+        /// </summary>
+        public CshType Type { get; private set; }
+
+        /// <summary>
+        ///     Number of columns per row
+        /// </summary>
+        public int ColumnCount { get; private set; }
+
+        /// <summary>
+        ///     Number of rows
+        /// </summary>
+        public int RowCount { get; private set; }
+
+        /// <summary>
+        ///     Type info
+        /// </summary>
+        public CshMeta[][] Meta { get; private set; }
+
+        /// <summary>
+        ///     Parsed rows
+        /// </summary>
+        public object[][] Rows { get; private set; }
+
+        /// <inheritdoc />
+        /// <summary>
+        ///     Parse the given <paramref name="data" /> into row data
+        /// </summary>
+        /// <param name="data">stream to parse</param>
+        /// <exception cref="T:System.NotSupportedException">When a cell is an unknown type</exception>
+        public void Load([NotNull] Stream data)
+        {
             using (var reader = new BinaryReader(data, Encoding.UTF8, true))
             {
                 Type = (CshType) reader.ReadInt32BE();
-                Contract.Assert(Type == CshType.Normal, "Type == CshType.Normal");
+                Contract.Assert(Type.ToString("X") != ((uint) Type).ToString("X"),
+                    "Type.ToString('X') != ((uint)Type).ToString('X')");
                 ColumnCount = reader.ReadInt32BE();
                 RowCount = reader.ReadInt32BE();
                 Meta = reader.ReadInt32Array(ColumnCount * RowCount * 2)
@@ -45,7 +93,7 @@ namespace WOFFington.Csh
 
                         if (meta.Offset == 0)
                         {
-                            Rows[i][j] = (uint)meta.Flags;
+                            Rows[i][j] = (uint) meta.Flags;
                         }
                         else
                         {
@@ -97,31 +145,6 @@ namespace WOFFington.Csh
                 }
             }
         }
-
-        /// <summary>
-        ///     File type enum
-        /// </summary>
-        public CshType Type { get; }
-
-        /// <summary>
-        ///     Number of columns per row
-        /// </summary>
-        public int ColumnCount { get; }
-
-        /// <summary>
-        ///     Number of rows
-        /// </summary>
-        public int RowCount { get; }
-
-        /// <summary>
-        ///     Type info
-        /// </summary>
-        public CshMeta[][] Meta { get; }
-
-        /// <summary>
-        ///     Parsed rows
-        /// </summary>
-        public object[][] Rows { get; }
 
         /// <summary>
         ///     Output into CSV

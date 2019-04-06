@@ -36,16 +36,16 @@
         <DocumentationFile>bin\Release\WOFFington.xml</DocumentationFile>
     </PropertyGroup>
     <ItemGroup>
+        <Reference Include="ICSharpCode.SharpZipLib, Version=1.1.0.145, Culture=neutral, PublicKeyToken=1b03e6acf1164f73">
+          <HintPath>..\packages\SharpZipLib.1.1.0\lib\net45\ICSharpCode.SharpZipLib.dll</HintPath>
+          <Private>True</Private>
+        </Reference>
         <Reference Include="JetBrains.Annotations, Version=2019.1.1.0, Culture=neutral, PublicKeyToken=1010a0d8d6380325">
           <HintPath>..\packages\JetBrains.Annotations.2019.1.1\lib\net20\JetBrains.Annotations.dll</HintPath>
           <Private>True</Private>
         </Reference>
         <Reference Include="System" />
         <Reference Include="System.Core" />
-        <Reference Include="zlib.net, Version=1.0.3.0, Culture=neutral, PublicKeyToken=47d7877cb3620160">
-          <HintPath>..\packages\zlib.net.1.0.4.0\lib\zlib.net.dll</HintPath>
-          <Private>True</Private>
-        </Reference>
     </ItemGroup>
     <ItemGroup>
         <Compile Include="Csh\CshFile.cs" />
@@ -56,6 +56,10 @@
         <Compile Include="Extensions\RememberStream.cs" />
         <Compile Include="Mithril\MithrilCompressedFile.cs" />
         <Compile Include="Mithril\MithrilCompressionType.cs" />
+        <Compile Include="Mithril\IMithrilFile.cs" />
+        <Compile Include="Mithril\MithrilFileAttribute.cs" />
+        <Compile Include="Mithril\MithrilFileFactory.cs" />
+        <Compile Include="Mithril\MithrilFileType.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
     </ItemGroup>
     <ItemGroup>
