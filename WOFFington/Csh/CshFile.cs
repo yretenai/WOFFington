@@ -43,10 +43,9 @@ namespace WOFFington.Csh
                     {
                         var meta = Meta[i][j];
 
-                        if (meta.Flags.HasFlag(CshFlags.Null))
+                        if (meta.Offset == 0)
                         {
-                            Contract.Assert(meta.Offset == 0, "meta.Offset == 0");
-                            Rows[i][j] = null;
+                            Rows[i][j] = (uint)meta.Flags;
                         }
                         else
                         {

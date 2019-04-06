@@ -24,11 +24,6 @@ namespace WOFFington.Csh
         LittleEndian = 0x2,
 
         /// <summary>
-        ///     Value is null?
-        /// </summary>
-        Null = 0x20000000,
-
-        /// <summary>
         ///     BE int32
         /// </summary>
         Int = 0x40000000,
