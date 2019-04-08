@@ -21,24 +21,27 @@ namespace WOFFington.Mithril
         ///     Parse the stream
         /// </summary>
         /// <param name="stream">stream to parse</param>
+        /// <param name="magicNumber"></param>
         /// <returns>instance of decoded mithril file</returns>
         /// <exception cref="InvalidEnumArgumentException">thrown when the file type is unrecognized</exception>
-        public static IMithrilFile Parse([NotNull] MithrilCompressedFile stream)
+        public static IMithrilFile Parse([NotNull] MithrilCompressedFile stream, int magicNumber)
         {
-            if (FileTypes.Count == 0)
-            {
-                LoadInternal();
-            }
+            if (FileTypes.Count == 0) LoadInternal();
 
             if (!FileTypes.TryGetValue(stream.FileType, out var parser))
-            {
                 throw new InvalidEnumArgumentException(nameof(stream.FileType));
-            }
 
             var instance = Activator.CreateInstance(parser) as IMithrilFile;
             Contract.Assert(instance != null, nameof(instance) + " != null");
-            instance.Load(stream);
-            return instance;
+            try
+            {
+                instance.Load(stream, magicNumber);
+                return instance;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -60,10 +63,8 @@ namespace WOFFington.Mithril
                     if (FileTypes.TryGetValue(attribute.FileType, out var loadedParser))
                     {
                         if (loadedParser.FullName != parser.FullName && internalTypes.Contains(loadedParser.FullName))
-                        {
                             throw new ArgumentException(
                                 $"File type {attribute.FileType} is already processed by {loadedParser.FullName} (attempting to add {parser.FullName})");
-                        }
                     }
                     else
                     {

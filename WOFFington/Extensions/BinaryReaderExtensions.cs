@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -27,8 +26,9 @@ namespace WOFFington.Extensions
         /// <param name="reader"></param>
         /// <param name="count">elements to read</param>
         /// <returns>array of 32-bit host-endian integers</returns>
-        public static IEnumerable<int> ReadInt32Array(this BinaryReader reader, int count)
+        public static int[] ReadInt32Array(this BinaryReader reader, int count)
         {
+            if (count == 0) return Array.Empty<int>();
             var arr = new int[count];
             var bytes = reader.ReadBytes(count * 4);
             unsafe

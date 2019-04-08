@@ -18,6 +18,8 @@ namespace WOFFington.Csh
     [MithrilFile(MithrilFileType.Csh)]
     public class CshFile : IMithrilFile
     {
+        private const int CSH_MAGIC = 0x63736800;
+
         /// <summary>
         ///     Parse the given <paramref name="data" /> into row data
         /// </summary>
@@ -25,7 +27,7 @@ namespace WOFFington.Csh
         /// <exception cref="NotSupportedException">When a cell is an unknown type</exception>
         public CshFile([NotNull] Stream data)
         {
-            Load(data);
+            Load(data, CSH_MAGIC);
         }
 
         /// <summary>
@@ -62,13 +64,35 @@ namespace WOFFington.Csh
         public object[][] Rows { get; private set; }
 
         /// <inheritdoc />
+        public string Extension => ".csv";
+
+        /// <inheritdoc />
+        public void Export(string path)
+        {
+            using (Stream fp = File.OpenWrite(path))
+            {
+                Export(fp);
+            }
+        }
+
+        /// <inheritdoc />
+        public void Export(Stream stream)
+        {
+            var bytes = Encoding.UTF8.GetBytes(ToString());
+            stream.Write(bytes, 0, bytes.Length);
+            stream.Flush();
+        }
+
+        /// <inheritdoc />
         /// <summary>
         ///     Parse the given <paramref name="data" /> into row data
         /// </summary>
         /// <param name="data">stream to parse</param>
+        /// <param name="magicNumber">number to verify</param>
         /// <exception cref="T:System.NotSupportedException">When a cell is an unknown type</exception>
-        public void Load([NotNull] Stream data)
+        public void Load(Stream data, int magicNumber)
         {
+            Contract.Assert(magicNumber == CSH_MAGIC, "magicNumber == CSH_MAGIC");
             using (var reader = new BinaryReader(data, Encoding.UTF8, true))
             {
                 Type = (CshType) reader.ReadInt32BE();
@@ -92,11 +116,8 @@ namespace WOFFington.Csh
                         var meta = Meta[i][j];
 
                         if (meta.Offset == 0)
-                        {
                             Rows[i][j] = (uint) meta.Flags;
-                        }
                         else
-                        {
                             using (new RememberStream(data))
                             {
                                 data.Position = meta.Offset;
@@ -124,14 +145,10 @@ namespace WOFFington.Csh
                                         "(uint)meta.Flags == 0x40000001 || (uint)meta.Flags == 0x80000001");
                                     object value = reader.ReadInt32();
                                     if (meta.Flags.HasFlag(CshFlags.BigEndian))
-                                    {
                                         value = IPAddress.HostToNetworkOrder((int) value);
-                                    }
 
                                     if (meta.Flags.HasFlag(CshFlags.Float))
-                                    {
                                         value = BitConverter.ToSingle(BitConverter.GetBytes((int) value), 0);
-                                    }
 
                                     Rows[i][j] = value;
                                 }
@@ -140,7 +157,6 @@ namespace WOFFington.Csh
                                     throw new NotSupportedException(((uint) meta.Flags).ToString("X"));
                                 }
                             }
-                        }
                     }
                 }
             }

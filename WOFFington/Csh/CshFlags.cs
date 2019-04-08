@@ -24,12 +24,12 @@ namespace WOFFington.Csh
         LittleEndian = 0x2,
 
         /// <summary>
-        ///     BE int32
+        ///     Int32
         /// </summary>
         Int = 0x40000000,
 
         /// <summary>
-        ///     LE int32?
+        ///     Float32
         /// </summary>
         Float = 0x80000000
     }

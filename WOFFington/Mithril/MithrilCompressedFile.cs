@@ -36,10 +36,7 @@ namespace WOFFington.Mithril
         /// <exception cref="T:System.IO.FileNotFoundException">Thrown when <paramref name="filepath" /> does not exist</exception>
         public MithrilCompressedFile([NotNull] string filepath)
         {
-            if (!File.Exists(filepath))
-            {
-                throw new FileNotFoundException(filepath);
-            }
+            if (!File.Exists(filepath)) throw new FileNotFoundException(filepath);
 
             using (var stream = File.OpenRead(filepath))
             {
@@ -50,9 +47,6 @@ namespace WOFFington.Mithril
         /// <summary>
         ///     Unwraps and decompresses given the <paramref name="baseStream" />.
         ///     This is a shadow copy of <seealso cref="MithrilCompressedFile(System.IO.Stream)" />
-        ///     Considerations:
-        ///     There are 31 unknown integers in the header structure, in debug builds these will assert for known values.
-        ///     If an assertion is trapped, please note the file!
         /// </summary>
         /// <param name="baseStream">Stream to work with</param>
         /// <exception cref="InvalidEnumArgumentException">
@@ -64,26 +58,11 @@ namespace WOFFington.Mithril
             using (var Reader = new BinaryReader(baseStream, Encoding.UTF8, true))
             {
                 Magic = Reader.ReadInt32();
-                Contract.Assert(Magic == 0x63736800, nameof(Magic) + " == 0x63736800");
 
-                Ints = Reader.ReadInt32Array(0x1F).Select(IPAddress.NetworkToHostOrder).ToArray();
-                FileType = (MithrilFileType) Ints[1];
-#if DEBUG
-                Contract.Assert(Ints[0] == 0x2, "Ints[0] == 0x2");
-                Contract.Assert(Ints[1].ToString("X") != FileType.ToString("X"),
-                    "Ints[1].ToString('X') != FileType.ToString('X')");
-                Contract.Assert(Ints[2] == 0x2, "Ints[2] == 0x2");
-                Contract.Assert(Ints[9] == 0x1, "Ints[9] == 0x1");
-                for (var i = 0; i < Ints.Length; ++i)
-                {
-                    if (i <= 2 || i == 9)
-                    {
-                        continue;
-                    }
-
-                    Contract.Assert(Ints[i] == 0x0, "Ints[i] == 0x0");
-                }
-#endif
+                FileVersion = Reader.ReadInt32BE();
+                FileType = (MithrilFileType) Reader.ReadInt32BE();
+                Contract.Assert(((int) FileType).ToString("X") != FileType.ToString("X"), "(int)FileType != FileType");
+                Ints = Reader.ReadInt32Array(0x1D).Select(IPAddress.NetworkToHostOrder).ToArray();
 
                 ZlibMagic = Reader.ReadInt32();
                 Contract.Assert(ZlibMagic == 0x5A4C4942, nameof(ZlibMagic) + " == 0x5A4C4942");
@@ -121,16 +100,18 @@ namespace WOFFington.Mithril
         ///     Deserializes this stream into a parsed file type
         /// </summary>
         /// <returns>IMithrilFile instance of the target filetype</returns>
+        [CanBeNull]
         public IMithrilFile Deserialize()
         {
-            return ParsedFile ?? (ParsedFile = MithrilFileFactory.Parse(this));
+            return ParsedFile ?? (ParsedFile = MithrilFileFactory.Parse(this, Magic));
         }
 
-        #region Vars
+        #region Variables
 
         /// <summary>
         ///     This stream, but parsed
         /// </summary>
+        [CanBeNull]
         public IMithrilFile ParsedFile { get; private set; }
 
         /// <summary>
@@ -152,6 +133,11 @@ namespace WOFFington.Mithril
         ///     File type declared by the file.
         /// </summary>
         public MithrilFileType FileType { get; private set; }
+
+        /// <summary>
+        ///     Version declared by the file.
+        /// </summary>
+        public int FileVersion { get; private set; }
 
         /// <summary>
         ///     Mithril Zlib magic header
@@ -240,10 +226,7 @@ namespace WOFFington.Mithril
                 BaseStream.Dispose();
 
                 // ReSharper disable once SuspiciousTypeConversion.Global
-                if (ParsedFile != null && ParsedFile is IDisposable disposable)
-                {
-                    disposable.Dispose();
-                }
+                if (ParsedFile != null && ParsedFile is IDisposable disposable) disposable.Dispose();
             }
         }
 
@@ -265,12 +248,10 @@ namespace WOFFington.Mithril
         public override bool Equals(object obj)
         {
             if (obj is MithrilCompressedFile compressedFile)
-            {
                 return Ints.SequenceEqual(compressedFile.Ints) && compressedFile.FileType == FileType &&
                        compressedFile.CompressedSize == CompressedSize &&
                        compressedFile.UncompressedSize == CompressedSize &&
                        compressedFile.CompressionType == CompressionType && BaseStream.Equals(compressedFile);
-            }
 
             return false;
         }
